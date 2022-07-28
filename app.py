@@ -14,19 +14,17 @@ db.setDatabaseName(f'Driver={{SQL SERVER}}; Server={SERVER}; Database={DATABASE}
 db.open()
 
 class PageLink(QLabel):
-
     clicked = Signal([str])  # Signal emited when label is clicked
 
     def __init__(self, text, parent=None):
         super().__init__(text, parent=parent)
         self.setTextInteractionFlags(Qt.LinksAccessibleByMouse)
-        self.setStyleSheet("color: blue;") # set text color to blue to emulate a link
+        self.setStyleSheet("color: blue;")  # set text color to blue to emulate a link
         self.setCursor(Qt.PointingHandCursor)  # set the cursor to link pointer
 
     def mousePressEvent(self, event):
-        self.clicked.emit(self.text())   # emit the clicked signal when pressed
+        self.clicked.emit(self.text())  # emit the clicked signal when pressed
         return super().mousePressEvent(event)
-
 
 class App(QDialog):
     def __init__(self):
@@ -138,48 +136,55 @@ class ShowAgent(QMainWindow):
         self.layout.addWidget(self.stackWidget)
 
         # setup the layout for the page numbers below the stacked widget
-        self.pagination_layout = QHBoxLayout()
-        self.pagination_layout.addStretch(0)
-        self.pagination_layout.addWidget(QLabel("<"))
 
-        data = []
-        for b in range(0, (self.ds.rowCount() + 1 - 90)):
-            data.append([])
+        #self.pagination_layout.addStretch(0)
+       # self.pagination_layout.addWidget(QLabel("<"))
+
+
+        self.data = []
+        for b in range(0, (self.ds.rowCount() + 1)):
+            self.data.append([])
             for j in range(7):
                 index = self.ds.index(b, j)
                 # We suppose data are strings
-                data[b].append(str(self.ds.data(index)))
-                print(data)
-        # create pages and corresponding labels
-        page = 1
+                self.data[b].append(str(self.ds.data(index)))
+            page = QWidget()
+            self.gg = QVBoxLayout(page)
+            layout = QVBoxLayout(page)
+            label_id = QLabel(str(self.data[b][0]))
+            label_name = QLabel(str(self.data[b][1]))
+            label_type = QLabel(str(self.data[b][2]))
+            label_inn = QLabel(str(self.data[b][3]))
+            self.gg.addWidget(label_name)
+            self.gg.addWidget(label_type)
+            self.gg.addWidget(label_inn)
+            self.gg.addWidget(label_id)
+            layout.addLayout(self.gg)
+            self.stackWidget.addWidget(page)
 
-        rwcount = page * 10
-        self.offset = (page-1)*rwcount
-        self.ds.select()
+        self.pagination(1)
+        #self.pagination_layout.addWidget(QLabel(">"))
+
 
 
         #self.layout.addWidget(self.v)
 
 
-        for i in range(1, (self.ds.rowCount() + 1 - 90)):
-                page_link = PageLink(str(i), parent=self)
+    def pagination(self, pagee):
+        self.pagination_layout = QHBoxLayout()
+        self.pagination_layout.addStretch(0)
+        self.rwcount = pagee + 5
+        self.offset = (pagee - 5)
+        if self.offset < 1:
+            self.offset = 1
+        if self.rwcount >= self.ds.rowCount():
+            self.rwcount = self.ds.rowCount()
+        for j in range(self.offset, self.rwcount):
+                page_link = PageLink(str(j), parent=self)
                 self.pagination_layout.addWidget(page_link)
-                page = QWidget()
-                gg = QVBoxLayout(page)
-                layout = QVBoxLayout(page)
-                label_id = QLabel(str(data[i-1][0]))
-                label_name = QLabel(str(data[i-1][1]))
-                label_type = QLabel(str(data[i-1][2]))
-                label_inn = QLabel(str(data[i-1][3]))
-                gg.addWidget(label_id)
-                gg.addWidget(label_name)
-                gg.addWidget(label_type)
-                gg.addWidget(label_inn)
-                gg.setContentsMargins(0, 1, 0, 0)
-                layout.addLayout(gg)
-                self.stackWidget.addWidget(page)
+                self.stackWidget.show()
+                self.gg.setContentsMargins(0, 1, 0, 0)
                 page_link.clicked.connect(self.switch_page)
-        self.pagination_layout.addWidget(QLabel(">"))
         self.layout.addLayout(self.pagination_layout)
 
     def initGUI(self):
@@ -194,7 +199,12 @@ class ShowAgent(QMainWindow):
 
     def switch_page(self, page):
         self.stackWidget.setCurrentIndex(int(page) - 1)
-        self.offset+=1
+        while self.pagination_layout.count():
+            child = self.pagination_layout.takeAt(0)
+            if child.widget():
+               child.widget().deleteLater()
+        #print("page " + str(page))
+        self.pagination(pagee=int(page))
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
