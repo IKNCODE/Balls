@@ -9,6 +9,7 @@ DATABASE = "balls"
 USERNAME = ""
 PASSWORD = ""
 
+#Connecting to MSSQL SERVER
 db = QSqlDatabase.addDatabase('QODBC')
 db.setDatabaseName(f'Driver={{SQL SERVER}}; Server={SERVER}; Database={DATABASE}; UID={USERNAME}; PWD={PASSWORD}')
 db.open()
@@ -26,6 +27,54 @@ class PageLink(QLabel):
         self.clicked.emit(self.text())  # emit the clicked signal when pressed
         return super().mousePressEvent(event)
 
+class LoginPage(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.initGUI()
+
+        self.grid = QGridLayout()
+
+        self.login_label = QLabel("Login")
+        self.login_field = QLineEdit()
+        self.password_label = QLabel("Password")
+        self.password_field = QLineEdit()
+        self.password_field.setEchoMode(QLineEdit.Password)
+        self.login_btn = QPushButton("Login", self)
+        self.login_btn.clicked.connect(self.validation)
+
+        self.grid.setSpacing(10)
+        self.grid.addWidget(self.login_label, 1, 0)
+        self.grid.addWidget(self.login_field, 1, 1)
+        self.grid.addWidget(self.password_label, 2, 0)
+        self.grid.addWidget(self.password_field, 2, 1)
+        self.grid.addWidget(self.login_btn, 3, 0)
+
+        self.setLayout(self.grid)
+
+    def initGUI(self):
+        self.setStyleSheet("QLabel {font: 14pt Comic Sans MS} QPushButton {font: 10pt Comic Sans MS}")
+        self.setWindowIcon(QIcon("icon.png"))
+        self.setWindowTitle("Login Page")
+        self.setGeometry(300, 300, 500, 300)
+        self.show()
+
+    def validation(self):
+        query = QSqlQuery("SELECT login,password,role FROM Users")
+        while query.next():
+            if self.login_field.text() == query.value(0) and self.password_field.text() == str(query.value(1)):
+                if query.value(2) == "admin":
+                    _translate = QCoreApplication.translate
+                    self.setWindowTitle(_translate("MainWindow", "MainWindow"))
+                    app = App()
+                    app.exec_()
+                elif query.value(2) == "user":
+                    _translate = QCoreApplication.translate
+                    self.setWindowTitle(_translate("MainWindow", "MainWindow"))
+                    shw = ShowAgent()
+                    shw.exec_()
+            #else:
+            #    reply = QMessageBox.question(self,"Error","Invalid login or password",QMessageBox.Ok)
+
 class App(QDialog):
     def __init__(self):
         super().__init__()
@@ -42,13 +91,14 @@ class App(QDialog):
         self.v.setModel(self.ds)
         self.v.resizeColumnsToContents()
 
+        #last row and data of them
         self.NewIndex = self.v.model().index(self.ds.rowCount() - 1, 0)
         self.maxrow = self.v.model().data(self.NewIndex)
 
+        #hide agent_id
         self.v.hideColumn(0)
 
-        #self.ds.insertRows(self.ds.rowCount(), 1)
-
+        #adding buttons, and layouts
         self.plus_button = QPushButton(self.tr("+"), self)
         self.plus_button.clicked.connect(self.add_data)
         self.plus_button.setShortcut('Ctrl+N')
@@ -71,20 +121,25 @@ class App(QDialog):
         self.newadd.triggered.connect(self.accept)
 
     def keyPressEvent(self, event):
+        #going to func delete_data if user enter "ESC" or "Delete"
         if event.key() in (Qt.Key_Backspace, Qt.Key_Delete):
             self.delete_data()
         QDialog.keyPressEvent(self, event)
 
     def initGUI(self):
+        self.setStyleSheet("QLabel {font: 14pt Comic Sans MS} QPushButton {font: 10pt Comic Sans MS}")
+        self.setWindowIcon(QIcon("icon.png"))
         self.setWindowTitle("Balls")
         self.setGeometry(300, 300, 1000, 500)
         self.show()
 
     def add_data(self):
         record = self.ds.record()
+        #set auto generation for id equals false to avoid errors in sql tables
         record.setGenerated('Id_agent', False)
         self.ds.insertRow(self.ds.rowCount())
 
+    #switch to another screen
     def change(self):
         _translate = QCoreApplication.translate
         self.setWindowTitle(_translate("MainWindow", "MainWindow"))
@@ -109,88 +164,158 @@ class App(QDialog):
         self.ds.select()
 
 
-class ShowAgent(QMainWindow):
+class ShowAgent(QDialog):
     def __init__(self):
         super().__init__()
         self.initGUI()
+        self.grid = QGridLayout()
+        #self.hbox = QHBoxLayout()
+        #vbox = QVBoxLayout(self)
+        self.table = QTableWidget()
+        self.table.setColumnCount(4)
+        self.page = 0
+        self.search = QLineEdit(self)
+        self.loaddata()
 
-        self.ds = QSqlTableModel()
-        self.ds.setEditStrategy(QSqlTableModel.OnFieldChange)
-        self.ds.setTable('Agent')
+        #calculate row count
+        query = QSqlQuery("SELECT COUNT(1) FROM Agent")
+        while query.next():
+            self.maxpage = query.value(0)
 
-        self.ds.select()
-        self.v = QTableView(selectionBehavior=QAbstractItemView.SelectRows)
-        self.v.setModel(self.ds)
-        self.v.resizeColumnsToContents()
+        self.plus_button = QPushButton(self.tr("Up"), self)
+        self.plus_button.clicked.connect(self.btn_page_up)
+        self.save_button = QPushButton(self.tr("Down"), self)
+        self.save_button.clicked.connect(self.btn_scroll_down)
+        #self.hbox.addWidget(self.search)
+        #self.hbox.addWidget(self.plus_button)
+        #self.hbox.addWidget(self.save_button)
+        #vbox.addWidget(self.table)
+        #vbox.addLayout(self.hbox)
 
-        self.NewIndex = self.v.model().index(self.ds.rowCount() - 1, 0)
-        self.maxrow = self.v.model().data(self.NewIndex)
-
-        self.v.hideColumn(0)
         self.central = QWidget(parent=self)
         self.layout = QVBoxLayout(self.central)
-        self.setCentralWidget(self.central)
+        #self.hbox.addWidget(self.central)
+        #self.hbox.addLayout(self.layout)
 
-        # create the stacked widget that will contain each page...
-        self.stackWidget = QStackedWidget(parent=self)
-        self.layout.addWidget(self.stackWidget)
+        self.sortText = ""
+        self.combo = QComboBox()
+        self.combo.addItems(["Нету", "Наименования (по возр.)","Наименования (по убыв.)","Размер скидки (по возр.)","Размер скидки (по убыв.)","Приоритет (по возр.)","Приоритет (по убыв.)"])
+        self.combo.activated[int].connect(self.sorting)
+        #vbox.addWidget(self.combo)
 
-        # setup the layout for the page numbers below the stacked widget
-
-        #self.pagination_layout.addStretch(0)
-       # self.pagination_layout.addWidget(QLabel("<"))
-
-
-        self.data = []
-        for b in range(0, (self.ds.rowCount() + 1)):
-            self.data.append([])
-            for j in range(7):
-                index = self.ds.index(b, j)
-                # We suppose data are strings
-                self.data[b].append(str(self.ds.data(index)))
-            page = QWidget()
-            self.gg = QVBoxLayout(page)
-            layout = QVBoxLayout(page)
-            label_id = QLabel(str(self.data[b][0]))
-            label_name = QLabel(str(self.data[b][1]))
-            label_type = QLabel(str(self.data[b][2]))
-            label_inn = QLabel(str(self.data[b][3]))
-            self.gg.addWidget(label_name)
-            self.gg.addWidget(label_type)
-            self.gg.addWidget(label_inn)
-            self.gg.addWidget(label_id)
-            layout.addLayout(self.gg)
-            self.stackWidget.addWidget(page)
+        self.typeCombo = QComboBox()
+        query = QSqlQuery("SELECT Name FROM AgentType")
+        self.typeCombo.addItem("Все Типы")
+        while query.next():
+            self.typeCombo.addItem(query.value(0))
+        self.typeCombo.activated[int].connect(self.typeSort)
+        #vbox.addWidget(self.typeCombo)
 
         self.pagination(1)
-        #self.pagination_layout.addWidget(QLabel(">"))
 
+        self.grid.addWidget(self.search,1,0)
+        self.grid.addWidget(self.combo,1,1)
+        self.grid.addWidget(self.typeCombo,1,2)
+        self.grid.addWidget(self.table,2,0,1,3)
+        self.grid.addWidget(self.plus_button,3,0)
+        self.grid.addWidget(self.save_button,3,1)
+        self.grid.addWidget(self.central,3,2)
 
+        self.setLayout(self.grid)
 
-        #self.layout.addWidget(self.v)
+        self.search.textChanged.connect(self.findName)
+
+    def sorting(self, text):
+        if text == 1:
+            self.table.sortItems(0, Qt.AscendingOrder)
+        if text == 2:
+            self.table.sortItems(0, Qt.DescendingOrder)
+        if text == 11:
+            self.table.sortItems(0, Qt.AscendingOrder)
+        if text == 12:
+            self.table.sortItems(0, Qt.DescendingOrder)
+        if text == 5:
+            self.table.sortItems(3,Qt.DescendingOrder)
+        if text == 6:
+            self.table.sortItems(3,Qt.AscendingOrder)
+
+    def typeSort(self, text):
+        if text != 0:
+            self.table.setRowCount(0)
+            sqlquery = QSqlQuery(
+                f"SELECT Agent.Name, AgentType.Name, Agent.Phone, Agent.Priority FROM Agent JOIN AgentType on Agent.AgentType = AgentType.IdType WHERE AgentType.IdType = {text}")
+            while sqlquery.next():
+                rows = self.table.rowCount()
+                self.table.setRowCount(rows + 1)
+                self.table.setItem(rows, 0, QTableWidgetItem(sqlquery.value(0)))
+                self.table.setItem(rows, 1, QTableWidgetItem(sqlquery.value(1)))
+                self.table.setItem(rows, 2, QTableWidgetItem(sqlquery.value(2)))
+                self.table.setItem(rows, 3, QTableWidgetItem(str(sqlquery.value(3))))
+            self.table.resizeColumnsToContents()
+        else:
+            self.loaddata()
 
 
     def pagination(self, pagee):
         self.pagination_layout = QHBoxLayout()
-        self.pagination_layout.addStretch(0)
-        self.rwcount = pagee + 5
-        self.offset = (pagee - 5)
+        self.offset = int(pagee) - 5
+        self.rwcount = int(pagee) + 6
         if self.offset < 1:
             self.offset = 1
-        if self.rwcount >= self.ds.rowCount():
-            self.rwcount = self.ds.rowCount()
-        for j in range(self.offset, self.rwcount):
-                page_link = PageLink(str(j), parent=self)
-                self.pagination_layout.addWidget(page_link)
-                self.stackWidget.show()
-                self.gg.setContentsMargins(0, 1, 0, 0)
-                page_link.clicked.connect(self.switch_page)
+        if self.rwcount >= self.maxpage // 5:
+            self.rwcount = self.maxpage // 5
+        for j in range(self.offset, self.rwcount+1):
+            page_link = PageLink(str(j), parent=self)
+            self.pagination_layout.addWidget(page_link)
+            page_link.clicked.connect(self.switch_page)
         self.layout.addLayout(self.pagination_layout)
 
-    def initGUI(self):
-        self.setWindowTitle("Balls")
-        self.setGeometry(300, 300, 1000, 500)
-        self.show()
+    def loaddata(self):
+        self.table.setRowCount(0)
+        sqlquery = QSqlQuery(f"SELECT Agent.Name, AgentType.Name, Agent.Phone, Agent.Priority FROM Agent JOIN AgentType on Agent.AgentType = AgentType.IdType Order BY Id_agent Offset 0 Rows Fetch Next 5 Rows Only")
+        while sqlquery.next():
+            rows = self.table.rowCount()
+            self.table.setRowCount(rows + 1)
+            self.table.setItem(rows, 0, QTableWidgetItem(sqlquery.value(0)))
+            self.table.setItem(rows, 1, QTableWidgetItem(sqlquery.value(1)))
+            self.table.setItem(rows, 2, QTableWidgetItem(sqlquery.value(2)))
+            self.table.setItem(rows, 3, QTableWidgetItem(str(sqlquery.value(3))))
+        self.table.resizeColumnsToContents()
+
+
+    def btn_page_up(self):
+        if self.page+1 > self.maxpage // 5:
+            self.page = self.maxpage // 5
+        else:
+            self.table.setRowCount(0)
+            self.page += 1
+            sqlquery = QSqlQuery(f"SELECT Agent.Name, AgentType.Name, Agent.Phone, Agent.Priority FROM Agent JOIN AgentType on Agent.AgentType = AgentType.IdType Order BY {self.sortText} Id_agent Offset {self.page*5} Rows Fetch Next 5 Rows Only")
+            while sqlquery.next():
+                rows = self.table.rowCount()
+                self.table.setRowCount(rows + 1)
+                self.table.setItem(rows, 0, QTableWidgetItem(sqlquery.value(0)))
+                self.table.setItem(rows, 1, QTableWidgetItem(sqlquery.value(1)))
+                self.table.setItem(rows, 2, QTableWidgetItem(sqlquery.value(2)))
+                self.table.setItem(rows, 3, QTableWidgetItem(str(sqlquery.value(3))))
+        self.combo.setCurrentIndex(0)
+        self.table.resizeColumnsToContents()
+
+    def btn_scroll_down(self):
+        if self.page == 0:
+            self.page = 0
+        else:
+            self.table.setRowCount(0)
+            self.page -= 1
+            sqlquery = QSqlQuery(f"SELECT Agent.Name, AgentType.Name, Agent.Phone, Agent.Priority FROM Agent JOIN AgentType on Agent.AgentType = AgentType.IdType Order BY Id_agent Offset {self.page*5} Rows Fetch Next 5 Rows Only")
+            while sqlquery.next():
+                rows = self.table.rowCount()
+                self.table.setRowCount(rows + 1)
+                self.table.setItem(rows, 0, QTableWidgetItem(sqlquery.value(0)))
+                self.table.setItem(rows, 1, QTableWidgetItem(sqlquery.value(1)))
+                self.table.setItem(rows, 2, QTableWidgetItem(sqlquery.value(2)))
+                self.table.setItem(rows, 3, QTableWidgetItem(str(sqlquery.value(3))))
+        self.combo.setCurrentIndex(0)
+        self.table.resizeColumnsToContents()
 
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key_Backspace, Qt.Key_Delete):
@@ -198,16 +323,40 @@ class ShowAgent(QMainWindow):
         QDialog.keyPressEvent(self, event)
 
     def switch_page(self, page):
-        self.stackWidget.setCurrentIndex(int(page) - 1)
+        self.table.setRowCount(0)
+        sqlquery = QSqlQuery(f"SELECT Agent.Name, AgentType.Name, Agent.Phone, Agent.Priority FROM Agent JOIN AgentType on Agent.AgentType = AgentType.IdType Order BY Id_agent Offset {int(page)*5} Rows Fetch Next 5 Rows Only")
         while self.pagination_layout.count():
             child = self.pagination_layout.takeAt(0)
             if child.widget():
-               child.widget().deleteLater()
-        #print("page " + str(page))
-        self.pagination(pagee=int(page))
+                child.widget().deleteLater()
+        while sqlquery.next():
+            rows = self.table.rowCount()
+            self.table.setRowCount(rows + 1)
+            self.table.setItem(rows, 0, QTableWidgetItem(sqlquery.value(0)))
+            self.table.setItem(rows, 1, QTableWidgetItem(sqlquery.value(1)))
+            self.table.setItem(rows, 2, QTableWidgetItem(sqlquery.value(2)))
+            self.table.setItem(rows, 3, QTableWidgetItem(str(sqlquery.value(3))))
+        self.combo.setCurrentIndex(0)
+        self.pagination(page)
+
+    def findName(self):
+        name = self.search.text().lower()
+        for row in range(self.table.rowCount()):
+            item = self.table.item(row, 0)
+            # if the search is *not* in the item's text *do not hide* the row
+            self.table.setRowHidden(row, name not in item.text().lower())
+        if self.search.text == "":
+            self.loaddata()
+
+    def initGUI(self):
+        self.setStyleSheet("QLabel {font: 14pt Comic Sans MS} QPushButton {font: 10pt Comic Sans MS}")
+        self.setWindowIcon(QIcon("icon.png"))
+        self.setWindowTitle("Balls")
+        self.setGeometry(300, 300, 1000, 500)
+        self.show()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    ap = App()
+    ap = LoginPage()
     app.exit()
     sys.exit(app.exec_())
