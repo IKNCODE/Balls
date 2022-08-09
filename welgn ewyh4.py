@@ -1,6 +1,0 @@
-btn_back = PageLink("<", parent=self)
-                btn_next = PageLink(">", parent=self)
-                self.pagination_layout.addWidget(btn_back)
-                self.pagination_layout.addWidget(btn_next)
-                btn_back.clicked.connect(self.back_page)
-                btn_next.clicked.connect(self.next_page)
