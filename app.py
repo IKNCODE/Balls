@@ -52,7 +52,7 @@ class LoginPage(QDialog):
         self.setLayout(self.grid)
 
     def initGUI(self):
-        self.setStyleSheet("QLabel {font: 14pt Comic Sans MS} QPushButton {font: 10pt Comic Sans MS}")
+        self.setStyleSheet("QLabel {font: 14pt Comic Sans MS} QPushButton {font: 10pt Comic Sans MS; background-color:#43DCFE} QLineEdit {font: 10pt Comic Sans MS; background-color:#F9969E } QDialog {background-color:#FFFFFF}")
         self.setWindowIcon(QIcon("icon.png"))
         self.setWindowTitle("Login Page")
         self.setGeometry(300, 300, 500, 300)
@@ -127,7 +127,9 @@ class App(QDialog):
         QDialog.keyPressEvent(self, event)
 
     def initGUI(self):
-        self.setStyleSheet("QLabel {font: 14pt Comic Sans MS} QPushButton {font: 10pt Comic Sans MS}")
+        self.setStyleSheet(
+            "QLabel {font: 14pt Comic Sans MS} QPushButton {font: 10pt Comic Sans MS; background-color:#43DCFE} QLineEdit {font: 10pt Comic Sans MS; background-color:#F9969E } QDialog {background-color:#FFFFFF}")
+
         self.setWindowIcon(QIcon("icon.png"))
         self.setWindowTitle("Balls")
         self.setGeometry(300, 300, 1000, 500)
@@ -172,7 +174,7 @@ class ShowAgent(QDialog):
         #self.hbox = QHBoxLayout()
         #vbox = QVBoxLayout(self)
         self.table = QTableWidget()
-        self.table.setColumnCount(4)
+        self.table.setColumnCount(5)
         self.page = 0
         self.search = QLineEdit(self)
         self.loaddata()
@@ -243,7 +245,7 @@ class ShowAgent(QDialog):
         if text != 0:
             self.table.setRowCount(0)
             sqlquery = QSqlQuery(
-                f"SELECT Agent.Name, AgentType.Name, Agent.Phone, Agent.Priority FROM Agent JOIN AgentType on Agent.AgentType = AgentType.IdType WHERE AgentType.IdType = {text}")
+                f"SELECT Agent.Name, AgentType.Name, Agent.Phone, Agent.Priority, Agent.Logotype FROM Agent JOIN AgentType on Agent.AgentType = AgentType.IdType WHERE AgentType.IdType = {text}")
             while sqlquery.next():
                 rows = self.table.rowCount()
                 self.table.setRowCount(rows + 1)
@@ -251,6 +253,12 @@ class ShowAgent(QDialog):
                 self.table.setItem(rows, 1, QTableWidgetItem(sqlquery.value(1)))
                 self.table.setItem(rows, 2, QTableWidgetItem(sqlquery.value(2)))
                 self.table.setItem(rows, 3, QTableWidgetItem(str(sqlquery.value(3))))
+                pic = QPixmap(f"agents/{sqlquery.value(4)}")
+                pixmap = pic.scaled(49, 70)
+                label = QLabel(self)
+                label.setPixmap(pixmap)
+                label.setScaledContents(True)
+                self.table.setCellWidget(rows, 4, label)
             self.table.resizeColumnsToContents()
         else:
             self.loaddata()
@@ -272,7 +280,7 @@ class ShowAgent(QDialog):
 
     def loaddata(self):
         self.table.setRowCount(0)
-        sqlquery = QSqlQuery(f"SELECT Agent.Name, AgentType.Name, Agent.Phone, Agent.Priority FROM Agent JOIN AgentType on Agent.AgentType = AgentType.IdType Order BY Id_agent Offset 0 Rows Fetch Next 5 Rows Only")
+        sqlquery = QSqlQuery(f"SELECT Agent.Name, AgentType.Name, Agent.Phone, Agent.Priority, Agent.Logotype FROM Agent JOIN AgentType on Agent.AgentType = AgentType.IdType Order BY Id_agent Offset 0 Rows Fetch Next 5 Rows Only")
         while sqlquery.next():
             rows = self.table.rowCount()
             self.table.setRowCount(rows + 1)
@@ -280,8 +288,13 @@ class ShowAgent(QDialog):
             self.table.setItem(rows, 1, QTableWidgetItem(sqlquery.value(1)))
             self.table.setItem(rows, 2, QTableWidgetItem(sqlquery.value(2)))
             self.table.setItem(rows, 3, QTableWidgetItem(str(sqlquery.value(3))))
+            pic = QPixmap(f"agents/{sqlquery.value(4)}")
+            pixmap = pic.scaled(49, 70)
+            label = QLabel(self)
+            label.setPixmap(pixmap)
+            label.setScaledContents(True)
+            self.table.setCellWidget(rows, 4, label)
         self.table.resizeColumnsToContents()
-
 
     def btn_page_up(self):
         if self.page+1 > self.maxpage // 5:
@@ -289,7 +302,7 @@ class ShowAgent(QDialog):
         else:
             self.table.setRowCount(0)
             self.page += 1
-            sqlquery = QSqlQuery(f"SELECT Agent.Name, AgentType.Name, Agent.Phone, Agent.Priority FROM Agent JOIN AgentType on Agent.AgentType = AgentType.IdType Order BY {self.sortText} Id_agent Offset {self.page*5} Rows Fetch Next 5 Rows Only")
+            sqlquery = QSqlQuery(f"SELECT Agent.Name, AgentType.Name, Agent.Phone, Agent.Priority, Agent.Logotype FROM Agent JOIN AgentType on Agent.AgentType = AgentType.IdType Order BY {self.sortText} Id_agent Offset {self.page*5} Rows Fetch Next 5 Rows Only")
             while sqlquery.next():
                 rows = self.table.rowCount()
                 self.table.setRowCount(rows + 1)
@@ -297,6 +310,12 @@ class ShowAgent(QDialog):
                 self.table.setItem(rows, 1, QTableWidgetItem(sqlquery.value(1)))
                 self.table.setItem(rows, 2, QTableWidgetItem(sqlquery.value(2)))
                 self.table.setItem(rows, 3, QTableWidgetItem(str(sqlquery.value(3))))
+                pic = QPixmap(f"agents/{sqlquery.value(4)}")
+                pixmap = pic.scaled(49, 70)
+                label = QLabel(self)
+                label.setPixmap(pixmap)
+                label.setScaledContents(True)
+                self.table.setCellWidget(rows, 4, label)
         self.combo.setCurrentIndex(0)
         self.table.resizeColumnsToContents()
 
@@ -306,7 +325,7 @@ class ShowAgent(QDialog):
         else:
             self.table.setRowCount(0)
             self.page -= 1
-            sqlquery = QSqlQuery(f"SELECT Agent.Name, AgentType.Name, Agent.Phone, Agent.Priority FROM Agent JOIN AgentType on Agent.AgentType = AgentType.IdType Order BY Id_agent Offset {self.page*5} Rows Fetch Next 5 Rows Only")
+            sqlquery = QSqlQuery(f"SELECT Agent.Name, AgentType.Name, Agent.Phone, Agent.Priority, Agent.Logotype FROM Agent JOIN AgentType on Agent.AgentType = AgentType.IdType Order BY Id_agent Offset {self.page*5} Rows Fetch Next 5 Rows Only")
             while sqlquery.next():
                 rows = self.table.rowCount()
                 self.table.setRowCount(rows + 1)
@@ -314,6 +333,12 @@ class ShowAgent(QDialog):
                 self.table.setItem(rows, 1, QTableWidgetItem(sqlquery.value(1)))
                 self.table.setItem(rows, 2, QTableWidgetItem(sqlquery.value(2)))
                 self.table.setItem(rows, 3, QTableWidgetItem(str(sqlquery.value(3))))
+                pic = QPixmap(f"agents/{sqlquery.value(4)}")
+                pixmap = pic.scaled(49, 70)
+                label = QLabel(self)
+                label.setPixmap(pixmap)
+                label.setScaledContents(True)
+                self.table.setCellWidget(rows, 4, label)
         self.combo.setCurrentIndex(0)
         self.table.resizeColumnsToContents()
 
@@ -324,7 +349,7 @@ class ShowAgent(QDialog):
 
     def switch_page(self, page):
         self.table.setRowCount(0)
-        sqlquery = QSqlQuery(f"SELECT Agent.Name, AgentType.Name, Agent.Phone, Agent.Priority FROM Agent JOIN AgentType on Agent.AgentType = AgentType.IdType Order BY Id_agent Offset {int(page)*5} Rows Fetch Next 5 Rows Only")
+        sqlquery = QSqlQuery(f"SELECT Agent.Name, AgentType.Name, Agent.Phone, Agent.Priority, Agent.Logotype FROM Agent JOIN AgentType on Agent.AgentType = AgentType.IdType Order BY Id_agent Offset {int(page)*5} Rows Fetch Next 5 Rows Only")
         while self.pagination_layout.count():
             child = self.pagination_layout.takeAt(0)
             if child.widget():
@@ -336,6 +361,12 @@ class ShowAgent(QDialog):
             self.table.setItem(rows, 1, QTableWidgetItem(sqlquery.value(1)))
             self.table.setItem(rows, 2, QTableWidgetItem(sqlquery.value(2)))
             self.table.setItem(rows, 3, QTableWidgetItem(str(sqlquery.value(3))))
+            pic = QPixmap(f"agents/{sqlquery.value(4)}")
+            pixmap = pic.scaled(49, 70)
+            label = QLabel(self)
+            label.setPixmap(pixmap)
+            label.setScaledContents(True)
+            self.table.setCellWidget(rows, 4, label)
         self.combo.setCurrentIndex(0)
         self.pagination(page)
 
@@ -349,7 +380,7 @@ class ShowAgent(QDialog):
             self.loaddata()
 
     def initGUI(self):
-        self.setStyleSheet("QLabel {font: 14pt Comic Sans MS} QPushButton {font: 10pt Comic Sans MS}")
+        self.setStyleSheet("QLabel {font: 14pt Comic Sans MS} QPushButton {font: 10pt Comic Sans MS; background-color:#43DCFE} QLineEdit {font: 10pt Comic Sans MS; background-color:#F9969E } QDialog {background-color:#FFFFFF}")
         self.setWindowIcon(QIcon("icon.png"))
         self.setWindowTitle("Balls")
         self.setGeometry(300, 300, 1000, 500)
